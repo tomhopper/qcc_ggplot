@@ -1,38 +1,65 @@
 #' @title plot.qcc
 #' @author Scrucca, L. (qcc package)
-#' @author Hopper, T. J. (ggplot/grid modification to plot.qcc)
+#' @author Hopper, T. J. (ggplot/grid modification to plot.qcc) \email{tomhopper@@gmail.com}
 #' @description Implementation of plot.qcc using ggplot2 and grid
 #' @details 
 #' @import grid
 #' @import ggplot2
 #' @import gtable
 #' @param x A qcc object
-#' @param add.stats A boolean flag controlling whether summary statistics are printed on the graph.
-#' @param chart.all All boolean flag controlling whether all (old and new) statistics are plotted, or only one or the other
-#' @param label.limits A character vector with three elements containing the labels for the lower control limit line, the upper control limit line and the center line.
-#' @param title A character string containing the desired plot title. If not supplied, a default will be created.
-#' @param xlab A character string containing the desired plot x-axis label. If not supplied, a default will be created.
-#' @param ylab A character string containing the desired plot y-axis label. If not supplied, a default will be created.
-#' @param ylim A two-element numeric vector containing desired limits for the y axis. If not supplied, a default will be created.
-#' @param axes.las An integer indicating the desired orientation of axis labels. See ?par for details. Defaults to 0.
-#' @param digits An integer indicating the number of digits to print. See ?getOption for details. Defaults to getOption("digits")
-#' @param restore.par A boolean indicating whether or not graphic parameters should be restored. Defaults to TRUE.
+#' @param add.stats A boolean flag controlling whether summary statistics are
+#'      printed on the graph.
+#' @param chart.all All boolean flag controlling whether all (old and new) 
+#'      statistics are plotted, or only one or the other
+#' @param label.limits A character vector with three elements containing the 
+#'      labels for the lower control limit line, the upper control limit line and 
+#'      the center line.
+#' @param title A character string containing the desired plot title. If not 
+#'      supplied, a default will be created.
+#' @param xlab A character string containing the desired plot x-axis label. 
+#'      If not supplied, a default will be created.
+#' @param ylab A character string containing the desired plot y-axis label. 
+#'      If not supplied, a default will be created.
+#' @param ylim A two-element numeric vector containing desired limits for the 
+#'      y axis. If not supplied, a default will be created.
+#' @param axes.las An integer indicating the desired orientation of axis labels. 
+#'      See \code{?par} for details. Defaults to 0.
+#' @param digits An integer indicating the number of digits to print. See 
+#'      \code{?getOption} for details. Defaults to getOption("digits")
+#' @param restore.par A boolean indicating whether or not graphic parameters 
+#'      should be restored. Defaults to TRUE.
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
+#' @return A \code{grid} object containing the complete plot.
+#' TODO: FIX: violating.runs only colors first point.
+#' TODO: TEST: beyond.limits colors all points?
+#' TODO: FIX: beyond.limits only plots one (first?) point.
+#' TODO: FIX: variable limits do not plot; limit labels plot in wrong location.
+#' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
+#'      and \code{size} for ggplot2 compatibility.
+#' FIXED: CL, UCL, LCL labels grid panel is too narrow (showing 40 instead 
+#'  of 400 and 10 instead of 1030). Used \code{paste(..., collapse = '')}.
 
 library(ggplot2)  # Used for plotting
 library(grid)     # Used to create plot title and statistics regions
 library(gtable)   # Used to align annotations outside the plot region
 
-gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE, 
+gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE, 
                        label.limits = c("LCL", "UCL", "CL"),
                        title = NULL, xlab = NULL, ylab = NULL, ylim = NULL, axes.las = 0,
                        digits =  getOption("digits"),
-                       restore.par = TRUE, font.size = 12, plot.new = TRUE, ...) 
+                       restore.par = TRUE, font.size = 16, size = 3, cex,
+                       plot.new = TRUE, ...) 
 {
   object <- x  # Argh.  Really want to use 'object' anyway
   if ((missing(object)) | (!inherits(object, "qcc")))
     stop("an object of class `qcc' is required")
   
+  #' if point size is the default and \code{cex} is given, we want to change \code{size} 
+  if (size == 3 & !missing(cex)) { 
+    if (size != cex) {
+      size <- cex
+    }
+  }
   # collect info from object
   type <- object$type
   std.dev <- object$std.dev
@@ -59,16 +86,22 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       v.indices <- seq(length(stats)+1, length(stats)+length(newstats)) 
     }
   }
-  if(is.null(ylim)) ylim <- range(v.statistics, limits, center)
-  if(is.null(ylab)) ylab <- c("Group summary statistics")
-  if(is.null(xlab)) xlab <- c("Group")
-  #' create a data frame for use by ggplot
-  qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
   
+  #' Set y-axis limits explicitly so we can re-use them to control
+  #' the layout and appearance of other elements in the grid.
+  if(is.null(ylim)) ylim <- range(v.statistics, limits, center)
   #' Set x-axis limit explicitly so we can control the appearance
   #' and re-use for other ggplot objects in a grid arrangement.
   xlim <- range(v.indices)
   
+  #' Set axis labels if not provided by the user
+  if(is.null(ylab)) ylab <- c("Group summary statistics")
+  if(is.null(xlab)) xlab <- c("Group")
+  
+  #' create a data frame for use by ggplot
+  qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
+  
+  #' Create a main graph title. If provided by the user, use that.
   if (is.null(title)) {          # Need to create a plot title
     if (is.null(newstats))  {    # Just for the qcc data used to calculate limits
       main.title <- paste(type, "Chart\nfor", data.name)
@@ -94,17 +127,17 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #print("digits equals getOption")
     has.dec <- FALSE
     sig.dig <- rep(0, length(v.statistics))
-    if(any(v.statistics %% 1 > 0)) {
-      has.dec <- TRUE
-    }
+    #     if(any(v.statistics %% 1 > 0)) {
+    #       has.dec <- TRUE
+    #     }
     for(i in 1:length(v.statistics)) {
       sig.dig[i] <- length(gregexpr("[[:digit:]]", as.character(v.statistics[i]))[[1]])
     }
-    if(has.dec) {
-      sig.figs <- max(sig.dig) # assume numbers with decimals imply significant figures
-    } else {
-      sig.figs <- min(sig.dig) # assume the smallest number implies the significant figures
-    }
+    #     if(has.dec) {
+    sig.figs <- max(sig.dig) # assume numbers with decimals imply significant figures
+    #     } else {
+    #       sig.figs <- min(sig.dig) # assume the smallest number implies the significant figures
+    #     }
   } else {
     #print("digits doesn't equal getOption")
     sig.figs <- digits
@@ -140,7 +173,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' TODO: Need to calculate appropriate angle.
   }
   qc.gplot <- ggplot(data = qc.data, environment = environment(), 
-                    aes_string(x = df.indices, y = df.statistics)) +
+                     aes_string(x = df.indices, y = df.statistics)) +
     theme(
       text = element_text(size = font.size), 
       plot.margin = unit(c(1,1,1,1), "mm")) +
@@ -148,7 +181,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' Plot dots and connecting lines for the statistic variable
   qc.gplot <- qc.gplot + 
     geom_line(x = df.indices, y = df.statistics) +
-    geom_point(x = df.indices, y = df.statistics, shape = 20) 
+    geom_point(x = df.indices, y = df.statistics, shape = 20, size = size) 
   qc.gplot <- qc.gplot + ylim(ylim)
   
   #' Add graph labels
@@ -199,7 +232,8 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       geom_point(data = v.data, 
                  aes_string(x = v.data$v.index, y = v.data$v.statistics), 
                  colour = qcc.options("violating.runs")$col, 
-                 shape = qcc.options("violating.runs")$pch)
+                 shape = qcc.options("violating.runs")$pch,
+                 size = size)
   }
   
   #' Points beyond limits
@@ -214,9 +248,11 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.b <- index.b[index.b>0] 
     }
     #' Replot points that are beyond limits.
-    qc.gplot <- qc.gplot + geom_point(aes_string(x = df.indices[index.b], y = df.statistics[index.b]), 
-                                      colour = qcc.options("beyond.limits")$col, 
-                                      shape = qcc.options("beyond.limits")$pch)
+    qc.gplot <- qc.gplot + 
+      geom_point(aes_string(x = df.indices[index.b], y = df.statistics[index.b]), 
+                 colour = qcc.options("beyond.limits")$col,
+                 shape = qcc.options("beyond.limits")$pch,
+                 size = size)
   }
   
   #' New Statistics
@@ -269,11 +305,11 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' One to the right for the UCL, LCL and center line labels
   qc.gt <- gtable_add_cols(x=qc.gt, 
                            widths=unit(x=1, units="strwidth", 
-                                       data=paste(max(nchar(label.limits)), "M", sep="")), 
+                                       data=paste(rep("M",max(nchar(label.limits))), sep = '', collapse = '')), 
                            pos=-1)
-#   print(max(nchar(label.limits)))
-#   print(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")))
-#   print(convertUnit(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")), "npc"))
+  #   print(max(nchar(label.limits)))
+  #   print(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")))
+  #   print(convertUnit(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")), "npc"))
   qc.gt <- gtable_add_grob(qc.gt, qc.g3, 
                            t = qc.index$t, 
                            l = ncol(qc.gt), 
@@ -364,13 +400,14 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
                           gp = gpar(fontsize = font.size))
     pushViewport(qc.vp.bot)
     #grid.rect(gp = gpar(fill = "grey50"))
+    #' Set up a tabular layout for the statistics
     stats.x <- unit(rep(NA, 6), "npc")
     stats.y <- unit(rep(NA, 3), "lines")
     stats.x[1] <- unit(0.1, "npc")
     stats.x[2] <- unit(0.3, "npc")
     stats.x[3] <- unit(0.4, "npc")
     stats.x[4] <- unit(0.5, "npc")
-    stats.x[5] <- unit(0.65, "npc")
+    stats.x[5] <- unit(0.58, "npc")
     stats.x[6] <- unit(0.9, "npc")
     stats.y[1] <- unit(3, "lines")
     stats.y[2] <- unit(2, "lines")
@@ -381,7 +418,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
               just = c("left"),
               name = "numgroupslab")
     grid.text(as.character(length(v.statistics)),
-              x = stats.x[2],
+              x = stats.x[3],
               y = stats.y[1],
               just = c("left"),
               name = "numgroups")
