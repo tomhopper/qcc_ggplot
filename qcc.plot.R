@@ -48,26 +48,26 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' Set up labels
   #' Set up observation indices
   if(chart.all) { 
-    statistics <- c(stats, newstats)
-    indices <- 1:length(statistics) 
+    v.statistics <- c(stats, newstats)
+    v.indices <- 1:length(v.statistics) 
   }  else { 
     if(is.null(newstats)) { 
-      statistics <- stats
-      indices <- 1:length(statistics) 
+      v.statistics <- stats
+      v.indices <- 1:length(v.statistics) 
     } else { 
-      statistics <- newstats 
-      indices <- seq(length(stats)+1, length(stats)+length(newstats)) 
+      v.statistics <- newstats 
+      v.indices <- seq(length(stats)+1, length(stats)+length(newstats)) 
     }
   }
-  if(is.null(ylim)) ylim <- range(stats, limits, center)
+  if(is.null(ylim)) ylim <- range(v.statistics, limits, center)
   if(is.null(ylab)) ylab <- c("Group summary statistics")
   if(is.null(xlab)) xlab <- c("Group")
   #' create a data frame for use by ggplot
-  qc.data <- data.frame(indices, statistics) 
+  qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
   
   #' Set x-axis limit explicitly so we can control the appearance
   #' and re-use for other ggplot objects in a grid arrangement.
-  xlim <- range(indices)
+  xlim <- range(v.indices)
   
   if (is.null(title)) {          # Need to create a plot title
     if (is.null(newstats))  {    # Just for the qcc data used to calculate limits
@@ -93,12 +93,12 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   if(digits == getOption("digits")) {
     #print("digits equals getOption")
     has.dec <- FALSE
-    sig.dig <- rep(0, length(statistics))
-    if(any(statistics %% 1 > 0)) {
+    sig.dig <- rep(0, length(v.statistics))
+    if(any(v.statistics %% 1 > 0)) {
       has.dec <- TRUE
     }
-    for(i in 1:length(statistics)) {
-      sig.dig[i] <- length(gregexpr("[[:digit:]]", as.character(statistics[i]))[[1]])
+    for(i in 1:length(v.statistics)) {
+      sig.dig[i] <- length(gregexpr("[[:digit:]]", as.character(v.statistics[i]))[[1]])
     }
     if(has.dec) {
       sig.figs <- max(sig.dig) # assume numbers with decimals imply significant figures
@@ -139,15 +139,16 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' Adjust axis title orientation based on "las" value.
     #' TODO: Need to calculate appropriate angle.
   }
-  qc.gplot <- ggplot(data = qc.data, environment = environment()) +
+  qc.gplot <- ggplot(data = qc.data, environment = environment(), 
+                    aes_string(x = df.indices, y = df.statistics)) +
     theme(
       text = element_text(size = font.size), 
       plot.margin = unit(c(1,1,1,1), "mm")) +
     scale_x_continuous(expand = c(0, 0.5), limits = xlim)
   #' Plot dots and connecting lines for the statistic variable
   qc.gplot <- qc.gplot + 
-    geom_line(aes(x = indices, y = statistics)) + 
-    geom_point(aes(x = indices, y = statistics), shape = 20)
+    geom_line(x = df.indices, y = df.statistics) +
+    geom_point(x = df.indices, y = df.statistics, shape = 20) 
   qc.gplot <- qc.gplot + ylim(ylim)
   
   #' Add graph labels
@@ -164,7 +165,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   } else {
     #' otherwise, we need to plot a stepped center line
     qc.gplot <- qc.gplot + 
-      geom_step(aes(x = indices, y = c(center, center[length(center)])), direction="hv", )
+      geom_step(aes(x = df.indices, y = c(center, center[length(center)])), direction="hv", )
   }
   
   #' Add control limit lines
@@ -173,9 +174,9 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     qc.gplot <- qc.gplot + geom_hline(yintercept = lcl, linetype = 2)
     qc.gplot <- qc.gplot + geom_hline(yintercept = ucl, linetype = 2)
   } else {
-    qc.gplot <- qc.gplot + geom_step(aes(x = indices, y = lcl[indices]), 
+    qc.gplot <- qc.gplot + geom_step(aes_string(x = df.indices, y = lcl[df.indices]), 
                                      direction = "hv", linetype = 2)
-    qc.gplot <- qc.gplot + geom_step(aes(x = indices, y = ucl[indices]), 
+    qc.gplot <- qc.gplot + geom_step(aes_string(x = df.indices, y = ucl[df.indices]), 
                                      direction = "hv", linetype = 2)
   }
   
@@ -190,16 +191,20 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.v <- index.v - length(stats) 
       index.v <- index.v[index.v>0] 
     }
+    
+    v.data <- data.frame(v.index = qc.data$df.indices[index.v], v.statistics = qc.data$df.statistics[index.v])
     #' Replot points in violating runs in the adjusted color.
     #' TODO: define data frame with violatinns$violating.runs and corresponding statistics values.
-    qc.gplot <- qc.gplot + geom_point(aes(x = indices[index.v], y = statistics[index.v]), 
-                                      colour = qcc.options("violating.runs")$col, 
-                                      shape = qcc.options("violating.runs")$pch)
+    qc.gplot <- qc.gplot + 
+      geom_point(data = v.data, 
+                 aes_string(x = v.data$v.index, y = v.data$v.statistics), 
+                 colour = qcc.options("violating.runs")$col, 
+                 shape = qcc.options("violating.runs")$pch)
   }
   
   #' Points beyond limits
   #' Identify points beyond limits
-  index.b <- NA
+  index.b <- rep(NA, length(violations$beyond.limits))
   if(is.null(qcc.options("beyond.limits")))
     stop(".qcc.options$beyond.limits undefined. See help(qcc.options).")
   if(length(violations$beyond.limits > 0)) { 
@@ -209,7 +214,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.b <- index.b[index.b>0] 
     }
     #' Replot points that are beyond limits.
-    qc.gplot <- qc.gplot + geom_point(aes(x = indices[index.b], y = statistics[index.b]), 
+    qc.gplot <- qc.gplot + geom_point(aes_string(x = df.indices[index.b], y = df.statistics[index.b]), 
                                       colour = qcc.options("beyond.limits")$col, 
                                       shape = qcc.options("beyond.limits")$pch)
   }
@@ -219,7 +224,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' added points.
   if(chart.all & (!is.null(newstats))) { 
     len.obj.stats <- length(object$statistics)
-    len.new.stats <- length(statistics) - len.obj.stats
+    len.new.stats <- length(v.statistics) - len.obj.stats
     qc.gplot <- qc.gplot + geom_vline(xintercept = len.obj.stats + 0.5, linetype = "dotted")
     
   }
@@ -231,8 +236,8 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   
   #' Add labels "LCL," "UCL," "CL" to control limits and center line.
-  qc.df.limitslab <- data.frame(index = 0, y = statistics[length(statistics)])
-  qc.p3 <- ggplot(qc.data, aes(x = indices, y = statistics), environment = environment()) +
+  qc.df.limitslab <- data.frame(index = 0, y = qc.data$df.statistics[length(qc.data$df.statistics)])
+  qc.p3 <- ggplot(qc.data, aes_string(x = df.indices, y = df.statistics), environment = environment()) +
     geom_blank() +
     theme_minimal() +
     theme(line = element_blank(),
@@ -263,8 +268,12 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' Add gtable grobs to draw annotation
   #' One to the right for the UCL, LCL and center line labels
   qc.gt <- gtable_add_cols(x=qc.gt, 
-                           widths=unit(x=1, units="strwidth", data=paste(label.limits[1], "M", sep="")), 
+                           widths=unit(x=1, units="strwidth", 
+                                       data=paste(max(nchar(label.limits)), "M", sep="")), 
                            pos=-1)
+#   print(max(nchar(label.limits)))
+#   print(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")))
+#   print(convertUnit(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")), "npc"))
   qc.gt <- gtable_add_grob(qc.gt, qc.g3, 
                            t = qc.index$t, 
                            l = ncol(qc.gt), 
@@ -290,15 +299,15 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   
   if(chart.all & (!is.null(newstats))) { 
-    qc.df.nslabel <- data.frame(index = indices[length(indices)], y = 0)
+    qc.df.nslabel <- data.frame(index = v.indices[length(v.indices)], y = 0)
     qc.p2.label2 <- paste("New data in", object$newdata.name)
     qc.p2.label2.x <- len.obj.stats + len.new.stats/2
-    qc.p2 <- ggplot(qc.data, aes(x = indices, y = statistics), environment = environment()) +
+    qc.p2 <- ggplot(qc.data, aes(x = df.indices, y = df.statistics), environment = environment()) +
       geom_blank() +
       theme_minimal() +
       theme(line = element_blank(),                   # Prevent display axis lines, etc.
             text = element_blank(),                   # Prevent display of labels, etc.
-            panel.background = element_rect(fill = "grey50", linetype = 2)) +
+            panel.background = element_rect(colour = NA)) +
       scale_x_continuous(expand = c(0, 0.5), limits = xlim) +
       guides(colour = "none")
     
@@ -333,7 +342,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   qc.vp.main <- viewport(gp = gpar(fontsize = font.size))
   pushViewport(qc.vp.main)
-  qc.vp.top.height = convertUnit(unit(3*2, "lines"), "npc")
+  qc.vp.top.height = convertUnit(unit(3, "lines"), "npc")
   qc.vp.bot.height = convertUnit(unit(0, "lines"), "npc")
   
   #' Set up the top viewport, pinning it to the top of the parent viewport.
@@ -371,7 +380,7 @@ gg.plotqcc <- function(x, add.stats = TRUE, chart.all = TRUE,
               y = stats.y[1],
               just = c("left"),
               name = "numgroupslab")
-    grid.text(as.character(length(statistics)),
+    grid.text(as.character(length(v.statistics)),
               x = stats.x[2],
               y = stats.y[1],
               just = c("left"),
