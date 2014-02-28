@@ -30,13 +30,14 @@
 #'      should be restored. Defaults to TRUE.
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
 #' @return A \code{grid} object containing the complete plot.
-#' TODO: FIX: violating.runs only colors first point.
-#' TODO: FIX: beyond.limits only plots only one (first?) point.
-#' TODO: FIX: variable limits do not plot; limit labels plot in wrong location.
+#' TODO: FIX: limit labels plot in wrong location.
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
 #' FIXED: CL, UCL, LCL labels grid panel is too narrow (showing 40 instead 
 #'  of 400 and 10 instead of 1030). Used \code{paste(..., collapse = '')}.
+#' FIXED: violating.runs only colors first point.
+#' FIXED: beyond.limits only plots only one (first?) point.
+#' FIXED: variable limits do not plot
 
 library(ggplot2)  # Used for plotting
 library(grid)     # Used to create plot title and statistics regions
@@ -196,6 +197,7 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #else lines(indices, c(center, center[length(center)]), type="s")
   } else {
     #' otherwise, we need to plot a stepped center line
+    print(center)
     qc.gplot <- qc.gplot + 
       geom_step(aes(x = df.indices, y = c(center, center[length(center)])), direction="hv", )
   }
@@ -206,9 +208,16 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     qc.gplot <- qc.gplot + geom_hline(yintercept = lcl, linetype = 2)
     qc.gplot <- qc.gplot + geom_hline(yintercept = ucl, linetype = 2)
   } else {
-    qc.gplot <- qc.gplot + geom_step(aes_string(x = df.indices, y = lcl[df.indices]), 
+    #print(qc.data$df.indices)
+    #print(lcl[qc.data$df.indices])
+    #print(ucl[qc.data$df.indices])
+    varlimits.df <- data.frame(x.l = qc.data$df.indices, yu.l = ucl[df.indices], yl.l = lcl[df.indices])
+    #print(varlimits.df)
+    qc.gplot <- qc.gplot + geom_step(data = varlimits.df, 
+                                     aes(x = x.l, y = yl.l), 
                                      direction = "hv", linetype = 2)
-    qc.gplot <- qc.gplot + geom_step(aes_string(x = df.indices, y = ucl[df.indices]), 
+    qc.gplot <- qc.gplot + geom_step(data = varlimits.df, 
+                                     aes(x = x.l, y = yu.l), 
                                      direction = "hv", linetype = 2)
   }
   
@@ -216,20 +225,20 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' Identify violating runs.
   if(is.null(qcc.options("violating.runs")))
     stop(".qcc.options$violating.runs undefined. See help(qcc.options).")
-  index.v <- rep(NA, length(violations$violating.runs))
+  index.r <- rep(NA, length(violations$violating.runs))
   if(length(violations$violating.runs > 0)) { 
-    index.v <- violations$violating.runs
+    index.r <- violations$violating.runs
     if(!chart.all & !is.null(newstats)) { 
-      index.v <- index.v - length(stats) 
-      index.v <- index.v[index.v>0] 
+      index.r <- index.r - length(stats) 
+      index.r <- index.r[index.r>0] 
     }
     
-    v.data <- data.frame(v.index = qc.data$df.indices[index.v], v.statistics = qc.data$df.statistics[index.v])
+    df.runs <- data.frame(x.r = qc.data$df.indices[index.r], y.r = qc.data$df.statistics[index.r])
     #' Replot points in violating runs in the adjusted color.
     #' TODO: define data frame with violatinns$violating.runs and corresponding statistics values.
     qc.gplot <- qc.gplot + 
-      geom_point(data = v.data, 
-                 aes_string(x = v.data$v.index, y = v.data$v.statistics), 
+      geom_point(data = df.runs, 
+                 aes(x = x.r, y = y.r), 
                  colour = qcc.options("violating.runs")$col, 
                  shape = qcc.options("violating.runs")$pch,
                  size = size)
@@ -246,9 +255,10 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.b <- index.b - length(stats) 
       index.b <- index.b[index.b>0] 
     }
+    df.beyond <- data.frame(x.b = qc.data$df.indices[index.b], y.b = df.statistics[index.b])
     #' Replot points that are beyond limits.
     qc.gplot <- qc.gplot + 
-      geom_point(aes_string(x = df.indices[index.b], y = df.statistics[index.b]), 
+      geom_point(data = df.beyond, aes(x = x.b, y = y.b), 
                  colour = qcc.options("beyond.limits")$col,
                  shape = qcc.options("beyond.limits")$pch,
                  size = size)
@@ -550,9 +560,9 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
 }
 
 #' possibly instead of as.environment("package:qcc") we need to use getNamespace("qcc")
-#new.namespace <- getNamespace("qcc")
+new.namespace <- getNamespace("qcc")
 ### new.namespace <- as.environment("package.qcc")
-#unlockBinding(sym="plot.qcc", env=new.namespace);
-#assignInNamespace(x="plot.qcc", value=gg.plot.qcc, ns=asNamespace("qcc"), envir=new.namespace);
-#assign("plot.qcc", gg.plot.qcc, envir=new.namespace);
-#lockBinding(sym="plot.qcc", env=new.namespace);
+unlockBinding(sym="plot.qcc", env=new.namespace);
+assignInNamespace(x="plot.qcc", value=gg.plot.qcc, ns=asNamespace("qcc"), envir=new.namespace);
+assign("plot.qcc", gg.plot.qcc, envir=new.namespace);
+lockBinding(sym="plot.qcc", env=new.namespace);
