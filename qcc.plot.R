@@ -31,8 +31,7 @@
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
 #' @return A \code{grid} object containing the complete plot.
 #' TODO: FIX: violating.runs only colors first point.
-#' TODO: TEST: beyond.limits colors all points?
-#' TODO: FIX: beyond.limits only plots one (first?) point.
+#' TODO: FIX: beyond.limits only plots only one (first?) point.
 #' TODO: FIX: variable limits do not plot; limit labels plot in wrong location.
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
