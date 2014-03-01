@@ -1,6 +1,9 @@
-library(ggplot2)  # Used for plotting
-library(grid)     # Used to create plot title and statistics regions
-library(gtable)   # Used to align annotations outside the plot region
+if(require(ggplot2) == FALSE)  # Used for plotting
+  stop("Could not load library ggplot2. plot.qcc requires ggplot2.")
+if(require(grid) == FALSE)     # Used to create plot title and statistics regions
+  stop("Could not load library grid. plot.qcc requires grid.")
+if(require(gtable) == FALSE)   # Used to align annotations outside the plot region
+  stop("Could not load library gtable. plot.qcc requires gtable.")
 
 #' @title plot.qcc
 #' @author Scrucca, L. (qcc package)
@@ -36,6 +39,9 @@ library(gtable)   # Used to align annotations outside the plot region
 #'      should be restored. Defaults to TRUE.
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
 #' @return A \code{grid} object containing the complete plot.
+#' TODO: Add ability to control axis orientation, using axes.las.
+#' TODO: Work out a cleaner layout for the stats grid, especially one that remains
+#'      readable when resized to larger sizes (i.e. variable positioning of text).
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
 #' FIXED: CL, UCL, LCL labels grid panel is too narrow (showing 40 instead 
