@@ -1,3 +1,7 @@
+library(ggplot2)  # Used for plotting
+library(grid)     # Used to create plot title and statistics regions
+library(gtable)   # Used to align annotations outside the plot region
+
 #' @title plot.qcc
 #' @author Scrucca, L. (qcc package)
 #' @author Hopper, T. J. (ggplot/grid modification to plot.qcc) \email{tomhopper@@gmail.com}
@@ -15,7 +19,9 @@
 #'      labels for the lower control limit line, the upper control limit line and 
 #'      the center line.
 #' @param title A character string containing the desired plot title. If not 
-#'      supplied, a default will be created.
+#'      supplied, a default will be created. If set to element_blank(), the title will
+#'      not be printed and the control chart will be expanded (i.e. the space normally allocated
+#'      to the title will be given over to plotting the data).
 #' @param xlab A character string containing the desired plot x-axis label. 
 #'      If not supplied, a default will be created.
 #' @param ylab A character string containing the desired plot y-axis label. 
@@ -30,7 +36,6 @@
 #'      should be restored. Defaults to TRUE.
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
 #' @return A \code{grid} object containing the complete plot.
-#' TODO: FIX: limit labels plot in wrong location.
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
 #' FIXED: CL, UCL, LCL labels grid panel is too narrow (showing 40 instead 
@@ -38,16 +43,14 @@
 #' FIXED: violating.runs only colors first point.
 #' FIXED: beyond.limits only plots only one (first?) point.
 #' FIXED: variable limits do not plot
+#' FIXED: limit labels plot in wrong location.
+#' ADDED: Ability to disable plot main title with title = element_blank()
 
-library(ggplot2)  # Used for plotting
-library(grid)     # Used to create plot title and statistics regions
-library(gtable)   # Used to align annotations outside the plot region
-
-gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE, 
+plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE, 
                        label.limits = c("LCL", "UCL", "CL"),
                        title = NULL, xlab = NULL, ylab = NULL, ylim = NULL, axes.las = 0,
                        digits =  getOption("digits"),
-                       restore.par = TRUE, font.size = 16, size = 3, cex,
+                       restore.par = TRUE, font.size = 16, size = 4, cex,
                        plot.new = TRUE, ...) 
 {
   object <- x  # Argh.  Really want to use 'object' anyway
@@ -55,7 +58,7 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     stop("an object of class `qcc' is required")
   
   #' if point size is the default and \code{cex} is given, we want to change \code{size} 
-  if (size == 3 & !missing(cex)) { 
+  if (size == 4 & !missing(cex)) { 
     if (size != cex) {
       size <- cex
     }
@@ -102,18 +105,20 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
   
   #' Create a main graph title. If provided by the user, use that.
-  if (is.null(title)) {          # Need to create a plot title
-    if (is.null(newstats))  {    # Just for the qcc data used to calculate limits
-      main.title <- paste(type, "Chart\nfor", data.name)
-    } else {                     # Also have new data (not used for limits calcs)
-      if (chart.all){            # Plotting both old and new data
-        main.title <- paste(type, "Chart\nfor", data.name, 
-                            "and", newdata.name)
-      } else {                   # Plotting only the new data
-        main.title <- paste(type, "Chart\nfor", newdata.name) 
+  if (!inherits(x=title, what="element_blank")){
+    if (is.null(title)) {          # Need to create a plot title
+      if (is.null(newstats))  {    # Just for the qcc data used to calculate limits
+        main.title <- paste(type, "Chart\nfor", data.name)
+      } else {                     # Also have new data (not used for limits calcs)
+        if (chart.all){            # Plotting both old and new data
+          main.title <- paste(type, "Chart\nfor", data.name, 
+                              "and", newdata.name)
+        } else {                   # Plotting only the new data
+          main.title <- paste(type, "Chart\nfor", newdata.name) 
+        }
       }
-    }
-  } else {main.title <- paste(title)}  # Plot title given by the user
+    } else {main.title <- paste(title)}  # Plot title given by the user
+  }
   
   #' Determine significant figures
   #' If \code{digits} is provided (i.e., \code{digits != getOption("digits")}), then use that, 
@@ -180,7 +185,7 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     scale_x_continuous(expand = c(0, 0.5), limits = xlim)
   #' Plot dots and connecting lines for the statistic variable
   qc.gplot <- qc.gplot + 
-    geom_line(x = df.indices, y = df.statistics) +
+    geom_line(x = df.indices, y = df.statistics, colour = "grey40") +
     geom_point(x = df.indices, y = df.statistics, shape = 20, size = size) 
   qc.gplot <- qc.gplot + ylim(ylim)
   
@@ -281,7 +286,7 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   
   #' Add labels "LCL," "UCL," "CL" to control limits and center line.
-  qc.df.limitslab <- data.frame(index = 0, y = qc.data$df.statistics[length(qc.data$df.statistics)])
+  qc.df.limitslab <- data.frame(x.ll = c(0,0,0), y.ll = c(limits[length(limits[,1]),1], limits[length(limits[,2]),2], center[length(center)]))
   qc.p3 <- ggplot(qc.data, aes_string(x = df.indices, y = df.statistics), environment = environment()) +
     geom_blank() +
     theme_minimal() +
@@ -294,17 +299,17 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   qc.p3 <- qc.p3 +
     geom_text(data = qc.df.limitslab,
-              aes( x = 0, limits[1]),
+              aes( x = 0, y = y.ll[1]),
               label = label.limits[1], 
               hjust = 0)
   qc.p3 <- qc.p3 +
     geom_text(data = qc.df.limitslab,
-              aes( x = 0, y = limits[2]),
+              aes( x = 0, y = y.ll[2]),
               label = label.limits[2], 
               hjust = 0)
   qc.p3 <- qc.p3 +
     geom_text(data = qc.df.limitslab,
-              aes( x = 0, y = center),
+              aes( x = 0, y = y.ll[3]),
               label = label.limits[3], 
               hjust = 0)
   
@@ -387,7 +392,11 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   qc.vp.main <- viewport(gp = gpar(fontsize = font.size))
   pushViewport(qc.vp.main)
-  qc.vp.top.height = convertUnit(unit(3, "lines"), "npc")
+  if (inherits(x=title, what="element_blank")) {
+    qc.vp.top.height = unit(0, "npc")
+  } else {
+    qc.vp.top.height = convertUnit(unit(4, "lines"), "npc")
+  }
   qc.vp.bot.height = convertUnit(unit(0, "lines"), "npc")
   
   #' Set up the top viewport, pinning it to the top of the parent viewport.
@@ -524,7 +533,7 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   #' Set up the viewports
   #' 
-  qc.vp.plt.height = unit(1 - as.numeric(qc.vp.bot.height) - as.numeric(convertUnit(qc.vp.top.height, "npc")), "npc")
+  qc.vp.plt.height = unit(1 - as.numeric(qc.vp.bot.height) - as.numeric(qc.vp.top.height), "npc")
   qc.vp.plt.y = unit(as.numeric(qc.vp.bot.height) + as.numeric(qc.vp.plt.height) / 2, "npc")
   qc.vp.plt <- viewport(y = qc.vp.plt.y, 
                         height =qc.vp.plt.height, 
@@ -535,17 +544,18 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #                        yscale = ggplot_build(qc.gplot)$panel$ranges[[1]]$y.range)
   
   
-  pushViewport(qc.vp.top)
-  #grid.rect(gp = gpar(fill = "gray80"), 
-  #          name = "titlerect")
-  grid.text(main.title, name = "titletext", 
-            gp = gpar(fontsize = as.numeric(font.size) + 2, fontface = "bold"),
-            x = 0.5, 
-            y = unit(1, "npc") - unit(1, "lines"), 
-            just = c("centre","center"))
-  
-  popViewport()
-  
+  if (!inherits(x=title, what="element_blank")){ 
+    pushViewport(qc.vp.top)
+    #grid.rect(gp = gpar(fill = "gray80"), 
+    #          name = "titlerect")
+    grid.text(main.title, name = "titletext", 
+              gp = gpar(fontsize = as.numeric(font.size) + 2, fontface = "bold"),
+              x = 0.5, 
+              y = unit(1, "npc") - unit(1, "lines"), 
+              just = c("centre","center"))
+    
+    popViewport()
+  }  
   #' Plot the graph
   pushViewport(qc.vp.plt)
   
@@ -559,10 +569,8 @@ gg.plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   invisible()
 }
 
-#' possibly instead of as.environment("package:qcc") we need to use getNamespace("qcc")
-new.namespace <- getNamespace("qcc")
-### new.namespace <- as.environment("package.qcc")
-unlockBinding(sym="plot.qcc", env=new.namespace);
-assignInNamespace(x="plot.qcc", value=gg.plot.qcc, ns=asNamespace("qcc"), envir=new.namespace);
-assign("plot.qcc", gg.plot.qcc, envir=new.namespace);
-lockBinding(sym="plot.qcc", env=new.namespace);
+#' Replace the qcc package plot function with our custom function.
+unlockBinding(sym="plot.qcc", env=getNamespace("qcc"));
+assignInNamespace(x="plot.qcc", value=plot.qcc, ns=asNamespace("qcc"), envir=getNamespace("qcc"));
+assign("plot.qcc", plot.qcc, envir=getNamespace("qcc"));
+lockBinding(sym="plot.qcc", env=getNamespace("qcc"));
