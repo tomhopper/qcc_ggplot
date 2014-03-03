@@ -6,7 +6,7 @@ Provides a complete, seamless replacement for qcc's plot function. Nearly all of
 
 Usage
 ---------
-Load library qcc, then <code>source()</code> the file qcc.plot.R. The qcc-native plotting function will be replaced, and any future calls to <code>plot()</code> with a qcc object will utilize this function, including those called from <code>qcc()</code>. The resulting object can be re-used and modified within grid graphics.
+Load library qcc, then <code>source()</code> the file qcc.plot.R. The qcc-native plotting function will be replaced in memory, and any future calls during the current session to <code>plot()</code> with a qcc object will utilize this function, including those calls from within <code>qcc()</code>. The resulting object can be re-used and modified within grid graphics.
 
 <code>plot.qcc()</code> will require that the libraries ggplot2, grid and gtable be installed and available.
 
