@@ -3,9 +3,9 @@ library(qcc)
 #' XmR
 my.xmr.raw <- c(5045,4350,4350,3975,4290,4430,4485,4285,3980,3925,3645,3760,3300,3685,3463,5200)
 my.xmr.new <- round(c(runif(5, 3500, 4000)))
-x <- qcc(my.xmr.raw, type = "xbar.one")
+x <- qcc(my.xmr.raw, type = "xbar.one", title = "Individuals Chart\nfor Wheeler sample data")
 x <- qcc(my.xmr.raw, type = "xbar.one", newdata = my.xmr.new)
-x <- qcc(matrix(cbind(my.xmr.raw[1:length(my.xmr.raw)-1], my.xmr.raw[2:length(my.xmr.raw)]), ncol = 2), type = "R")
+x <- qcc(matrix(cbind(my.xmr.raw[1:length(my.xmr.raw)-1], my.xmr.raw[2:length(my.xmr.raw)]), ncol = 2), type = "R", title = "Moving Range Chart\nfor Wheeler sample data")
 
 #' xbar-R
 my.xbr.raw <- c(45,46,43,44,

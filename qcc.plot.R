@@ -1,9 +1,9 @@
 if(require(ggplot2) == FALSE)  # Used for plotting
-  stop("Could not load library ggplot2. plot.qcc requires ggplot2.")
+  stop("Could not load library ggplot2. Please install ggplot2 and then source() this file.")
 if(require(grid) == FALSE)     # Used to create plot title and statistics regions
-  stop("Could not load library grid. plot.qcc requires grid.")
+  stop("Could not load library grid. Please install grid and then source() this file.")
 if(require(gtable) == FALSE)   # Used to align annotations outside the plot region
-  stop("Could not load library gtable. plot.qcc requires gtable.")
+  stop("Could not load library gtable. Please install gtable and then source() this file.")
 
 #' @title plot.qcc
 #' @author Scrucca, L. (qcc package)
@@ -42,6 +42,9 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #' TODO: Add ability to control axis orientation, using axes.las.
 #' TODO: Work out a cleaner layout for the stats grid, especially one that remains
 #'      readable when resized to larger sizes (i.e. variable positioning of text).
+#' TODO: Add some user control over the theme, e.g. by adding a parameter "theme" and
+#'      passing "theme_grey" or "theme_bw."
+#' ADDED: Limit digits to getOption(), and try to estimate a smaller value from the data.
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
 #' FIXED: CL, UCL, LCL labels grid panel is too narrow (showing 40 instead 
@@ -129,28 +132,18 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' Determine significant figures
   #' If \code{digits} is provided (i.e., \code{digits != getOption("digits")}), then use that, 
   #' otherwise estimate the correct number of significant measurement digits. 
-  #' Assume that if the numbers in $statistics include a decimal, then the largest number
-  #' of significant figures is the actual significant figures and everything else has been
-  #' truncated. For integer $statistics, assume the smallest number of digits is the 
-  #' significant figures.
-  #' TODO: Fix problem with too many digits in fake data.
+  #' Find the largest number of digits in $statistics, then take the smaller of that and 
+  #' getOption("digits")
   if(digits == getOption("digits")) {
-    #print("digits equals getOption")
+    #' Assume user did not set a value.
     has.dec <- FALSE
-    sig.dig <- rep(0, length(v.statistics))
-    #     if(any(v.statistics %% 1 > 0)) {
-    #       has.dec <- TRUE
-    #     }
-    for(i in 1:length(v.statistics)) {
-      sig.dig[i] <- length(gregexpr("[[:digit:]]", as.character(v.statistics[i]))[[1]])
+    sig.dig <- rep(0, length(stats))
+    for(i in 1:length(stats)) {
+      sig.dig[i] <- length(gregexpr("[[:digit:]]", as.character(stats[i]))[[1]])
     }
-    #     if(has.dec) {
     sig.figs <- max(sig.dig) # assume numbers with decimals imply significant figures
-    #     } else {
-    #       sig.figs <- min(sig.dig) # assume the smallest number implies the significant figures
-    #     }
+    if (sig.figs > getOption("digits")) sig.figs <- getOption("digits")
   } else {
-    #print("digits doesn't equal getOption")
     sig.figs <- digits
   }
   
