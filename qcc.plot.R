@@ -7,13 +7,14 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 
 #' @title plot.qcc
 #' @author Scrucca, L. (qcc package)
-#' @author Hopper, T. J. (ggplot/grid modification to plot.qcc) \email{tomhopper@@gmail.com}
+#' @author Hopper, T. J. (ggplot/grid rewrite of plot.qcc) \email{tomhopper@@gmail.com}
+#' @copyright (C) 2014 Thomas J. Hopper The MIT License
 #' @description Implementation of plot.qcc using ggplot2 and grid
 #' @details 
 #' @import grid
 #' @import ggplot2
 #' @import gtable
-#' @param x A qcc object
+#' @param x A qcc object to plot.
 #' @param add.stats A boolean flag controlling whether summary statistics are
 #'      printed on the graph.
 #' @param chart.all All boolean flag controlling whether all (old and new) 
@@ -40,8 +41,8 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
 #' @return A \code{grid} object containing the complete plot.
 #' TODO: Add ability to control axis orientation, using axes.las.
-#' TODO: Work out a cleaner layout for the stats grid, especially one that remains
-#'      readable when resized to larger sizes (i.e. variable positioning of text).
+#' TODO: Work out a cleaner layout for the stats grid, especially one that maintains
+#'      spacing when resized to larger sizes (i.e. variable positioning of text).
 #' TODO: Add some user control over the theme, e.g. by adding a parameter "theme" and
 #'      passing "theme_grey" or "theme_bw."
 #' ADDED: Limit digits to getOption(), and try to estimate a smaller value from the data.
@@ -84,7 +85,6 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   newstats <- object$newstats
   newdata.name <- object$newdata.name
   violations <- object$violations
-  #' Set up labels
   #' Set up observation indices
   if(chart.all) { 
     v.statistics <- c(stats, newstats)
@@ -106,12 +106,10 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' and re-use for other ggplot objects in a grid arrangement.
   xlim <- range(v.indices)
   
+  #' Set up labels
   #' Set axis labels if not provided by the user
   if(is.null(ylab)) ylab <- c("Group summary statistics")
   if(is.null(xlab)) xlab <- c("Group")
-  
-  #' create a data frame for use by ggplot
-  qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
   
   #' Create a main graph title. If provided by the user, use that.
   if (!inherits(x=title, what="element_blank")){
@@ -154,6 +152,9 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     label.limits[1] <- as.character(signif(lcl[length(lcl)], digits = sig.figs))
     label.limits[2] <- signif(ucl[length(ucl)], digits = sig.figs)
   }
+
+  #' create a data frame for use by ggplot
+  qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
   
   # plot Shewhart chart
   
@@ -212,11 +213,8 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     qc.gplot <- qc.gplot + geom_hline(yintercept = lcl, linetype = 2)
     qc.gplot <- qc.gplot + geom_hline(yintercept = ucl, linetype = 2)
   } else {
-    #print(qc.data$df.indices)
-    #print(lcl[qc.data$df.indices])
-    #print(ucl[qc.data$df.indices])
+    #' For variable limits, plot stepped lines for UCL and LCL
     varlimits.df <- data.frame(x.l = qc.data$df.indices, yu.l = ucl[df.indices], yl.l = lcl[df.indices])
-    #print(varlimits.df)
     qc.gplot <- qc.gplot + geom_step(data = varlimits.df, 
                                      aes(x = x.l, y = yl.l), 
                                      direction = "hv", linetype = 2)
@@ -236,10 +234,9 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.r <- index.r - length(stats) 
       index.r <- index.r[index.r>0] 
     }
-    
+    #' Create a data frame to (over)plot violating run points.
     df.runs <- data.frame(x.r = qc.data$df.indices[index.r], y.r = qc.data$df.statistics[index.r])
     #' Replot points in violating runs in the adjusted color.
-    #' TODO: define data frame with violatinns$violating.runs and corresponding statistics values.
     qc.gplot <- qc.gplot + 
       geom_point(data = df.runs, 
                  aes(x = x.r, y = y.r), 
@@ -259,6 +256,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.b <- index.b - length(stats) 
       index.b <- index.b[index.b>0] 
     }
+    #' Create a data frame to (over)plot beyond limit points.
     df.beyond <- data.frame(x.b = qc.data$df.indices[index.b], y.b = df.statistics[index.b])
     #' Replot points that are beyond limits.
     qc.gplot <- qc.gplot + 
@@ -285,7 +283,9 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   
   #' Add labels "LCL," "UCL," "CL" to control limits and center line.
+  #' First, set up a data frame for plotting.
   qc.df.limitslab <- data.frame(x.ll = c(0,0,0), y.ll = c(limits[length(limits[,1]),1], limits[length(limits[,2]),2], center[length(center)]))
+  #' Create a new ggplot object for the labels plot.
   qc.p3 <- ggplot(qc.data, aes_string(x = df.indices, y = df.statistics), environment = environment()) +
     geom_blank() +
     theme_minimal() +
@@ -312,45 +312,33 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
               label = label.limits[3], 
               hjust = 0)
   
+  #' The labels plot is complete; now just grab the "panel" portion of it
+  #' for actual display.
   qc.g3 <- gtable_filter(ggplotGrob(qc.p3), "panel")
   
-  #' Add gtable grobs to draw annotation
-  #' One to the right for the UCL, LCL and center line labels
+  #' Add gtable columns to draw annotation
+  #' to the right for the UCL, LCL and center line labels
   qc.gt <- gtable_add_cols(x=qc.gt, 
                            widths=unit(x=1, units="strwidth", 
                                        data=paste(rep("M",max(nchar(label.limits))), sep = '', collapse = '')), 
                            pos=-1)
-  #   print(max(nchar(label.limits)))
-  #   print(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")))
-  #   print(convertUnit(unit(x = 1, units = "strwidth", data = paste(max(nchar(label.limits)), "M", sep="")), "npc"))
+  #' Add out labels plot object into the plot grob
   qc.gt <- gtable_add_grob(qc.gt, qc.g3, 
                            t = qc.index$t, 
                            l = ncol(qc.gt), 
                            b = qc.index$b, 
                            r = ncol(qc.gt))
   
-  
-  #mtext(label.limits, side = 4, at = c(rev(lcl)[1], rev(ucl)[1]), 
-  #      las = 1, line = 0.1, col = gray(0.3))
-  #qc.gplot <- qc.gplot + annotate()
-  #mtext("CL", side = 4, at = rev(center)[1], 
-  #      las = 1, line = 0.1, col = gray(0.3))
-  #' annotate() plots only inside the plot region; 
-  #' need another solution for text outside the plot region
-  #' custom_annotation() seems to be right, or
-  #' arrangeGrob + textGrob, but Grob positioning may be difficult
-  #' For other solutions, try: 
-  #' http://stackoverflow.com/questions/10525957/how-to-draw-lines-outside-of-plot-area-in-ggplot2
-  #' http://stackoverflow.com/questions/12409960/ggplot2-annotate-outside-of-plot
-  #' https://groups.google.com/forum/#!topic/ggplot2/54q_qdTE1L0
-  #' http://stackoverflow.com/questions/10197738/add-a-footnote-citation-outside-of-plot-area-in-r
-  #' control font size in textGrob with gp = gpar(fontsize = XX)
-  
-  
+  #' If we're plotting newstats, we need another gtable row above the main
+  #' plot for the "calibration data..." and "new data in..." labels.
   if(chart.all & (!is.null(newstats))) { 
+    #' Set up a data frame for plotting
     qc.df.nslabel <- data.frame(index = v.indices[length(v.indices)], y = 0)
+    #' Create the newdata label
     qc.p2.label2 <- paste("New data in", object$newdata.name)
+    #' Calculate the position of the newdata label
     qc.p2.label2.x <- len.obj.stats + len.new.stats/2
+    #' Create the ggplot object
     qc.p2 <- ggplot(qc.data, aes(x = df.indices, y = df.statistics), environment = environment()) +
       geom_blank() +
       theme_minimal() +
@@ -374,7 +362,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     
     #' Get just the panel from qc.p2
     qc.g2 <- gtable_filter(ggplotGrob(qc.p2), "panel")
-    #' If needed, one above for the newstats labels
+    #' Add the newstats label plot above the main plat
     qc.gt <- gtable_add_rows(qc.gt, unit(2*font.size, "points"), pos = 0)
     qc.gt <- gtable_add_grob(x = qc.gt, grobs = qc.g2, 
                              t = 1, 
@@ -389,13 +377,21 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     grid.newpage()
   }
   
+  #' Explicitly create a parent viewport for the whole plot window so that
+  #' we are sure to have dimensional information for positioning.
   qc.vp.main <- viewport(gp = gpar(fontsize = font.size))
   pushViewport(qc.vp.main)
+  
+  #' If the user does not want a graph title, make the title viewport
+  #' zero height. Otherwise, make it 4 lines high.
   if (inherits(x=title, what="element_blank")) {
     qc.vp.top.height = unit(0, "npc")
   } else {
     qc.vp.top.height = convertUnit(unit(4, "lines"), "npc")
   }
+  
+  #' Set the bottom (stats) panel height to zero. If the user
+  #' wanted stats printed, we'll expand this later.
   qc.vp.bot.height = convertUnit(unit(0, "lines"), "npc")
   
   #' Set up the top viewport, pinning it to the top of the parent viewport.
@@ -530,7 +526,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     popViewport()
   }
   
-  #' Set up the viewports
+  #' Set up the main plot viewport
   #' 
   qc.vp.plt.height = unit(1 - as.numeric(qc.vp.bot.height) - as.numeric(qc.vp.top.height), "npc")
   qc.vp.plt.y = unit(as.numeric(qc.vp.bot.height) + as.numeric(qc.vp.plt.height) / 2, "npc")
@@ -542,7 +538,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #                        xscale = ggplot_build(qc.gplot)$panel$ranges[[1]]$x.range,
   #                        yscale = ggplot_build(qc.gplot)$panel$ranges[[1]]$y.range)
   
-  
+  #' Draw the main graph title
   if (!inherits(x=title, what="element_blank")){ 
     pushViewport(qc.vp.top)
     #grid.rect(gp = gpar(fill = "gray80"), 
@@ -555,11 +551,10 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     
     popViewport()
   }  
+  
   #' Plot the graph
   pushViewport(qc.vp.plt)
   
-  #' Draw the graph
-  #grid.rect()
   grid.draw(qc.gt)
   
   

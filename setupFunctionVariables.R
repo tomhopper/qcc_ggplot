@@ -26,23 +26,47 @@ diameter <- qcc.groups(pistonrings$diameter[-out], sample[-out])
 x <- qcc(diameter[1:25,], type="xbar", plot = TRUE)
 x <- qcc(diameter[1:25,], type="R", plot = TRUE)
 x <- qcc(diameter[1:25,], type="S", plot = TRUE)
-x <- qcc(diameter[1:25,], type="xbar", newdata=diameter[26:40,], plot = FALSE)
-x <- qcc(diameter[1:25,], type="R", newdata=diameter[26:40,], plot = FALSE)
-x <- qcc(diameter[1:25,], type="S", newdata=diameter[26:40,], plot = FALSE)
+x <- qcc(diameter[1:25,], type="xbar", newdata=diameter[26:40,], plot = TRUE)
+x <- qcc(diameter[1:25,], type="R", newdata=diameter[26:40,], plot = TRUE)
+x <- qcc(diameter[1:25,], type="S", newdata=diameter[26:40,], plot = TRUE)
 detach(pistonrings)
 
+data(circuit)
+attach(circuit)
+qcc(x[trial], sizes=size[trial], type="c")
+# remove out-of-control points (see help(circuit) for the reasons)
+inc <- setdiff(which(trial), c(6,20))
+qcc(x[inc], sizes=size[inc], type="c", labels=inc)
+qcc(x[inc], sizes=size[inc], type="c", labels=inc, 
+    newdata=x[!trial], newsizes=size[!trial], newlabels=which(!trial))
+qcc(x[inc], sizes=size[inc], type="u", labels=inc, 
+    newdata=x[!trial], newsizes=size[!trial], newlabels=which(!trial))
+detach(circuit)
 
+data(pcmanufact)
+attach(pcmanufact)
+qcc(x, sizes=size, type="u")
+detach(pcmanufact)
 
-add.stats <- TRUE
-chart.all <- TRUE
-label.limits <- c("LCL", "UCL", "CL")
-axes.las <- 0
-digits <-  getOption("digits")
-restore.par <- TRUE
-font.size <- 12
-plot.new <- TRUE
-digits <- getOption("digits")
-title <- NULL
-xlab <- NULL
-ylab <- NULL
-ylim <- NULL
+data(dyedcloth)
+attach(dyedcloth)
+qcc(x, sizes=size, type="u")
+# standardized control chart
+detach(dyedcloth)
+
+data(orangejuice)
+attach(orangejuice)
+qcc(D[trial], sizes=size[trial], type="p")
+
+# remove out-of-control points (see help(orangejuice) for the reasons)
+inc <- setdiff(which(trial), c(15,23))
+q1 <- qcc(D[inc], sizes=size[inc], type="p")
+qcc(D[inc], sizes=size[inc], type="p", newdata=D[!trial], newsizes=size[!trial]) 
+detach(orangejuice)
+
+data(orangejuice2)
+attach(orangejuice2)
+names(D) <- sample
+qcc(D[trial], sizes=size[trial], type="p")
+q2 <- qcc(D[trial], sizes=size[trial], type="p", newdata=D[!trial], newsizes=size[!trial])
+detach(orangejuice2)
