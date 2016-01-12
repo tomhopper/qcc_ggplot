@@ -178,15 +178,21 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' TODO: Need to calculate appropriate angle.
   }
   qc.gplot <- ggplot(data = qc.data, environment = environment(), 
-                     aes_string(x = df.indices, y = df.statistics)) +
+                     aes(x = df.indices, y = df.statistics)) +
     theme(
       text = element_text(size = font.size), 
       plot.margin = unit(c(1,1,1,1), "mm")) +
     scale_x_continuous(expand = c(0, 0.5), limits = xlim)
+  ###
+  ## Code works to here
+  ###
   #' Plot dots and connecting lines for the statistic variable
   qc.gplot <- qc.gplot + 
-    geom_line(x = df.indices, y = df.statistics, colour = "grey40") +
-    geom_point(x = df.indices, y = df.statistics, shape = 20, size = size) 
+    geom_line(colour = "grey40") + 
+    geom_point(shape = 20, size = size) 
+  ###
+  # Code is broken here
+  ###
   qc.gplot <- qc.gplot + ylim(ylim)
   
   #' Add graph labels
