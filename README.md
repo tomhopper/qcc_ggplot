@@ -14,3 +14,8 @@ To Do
 --------
 * Add back in the ability to control axis text orientation, using <code>axes.las</code>.
 * Clean up the layout of the stats panel, especially when resizing to larger plot dimensions.
+
+History
+_______
+v 1.0    2014-03-03 First release.
+v 1.0.1  2016-01-12 Update for ggplot2 v2.0 compatibility. May break on older versions of ggplot2
