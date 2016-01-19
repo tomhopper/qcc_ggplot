@@ -1,4 +1,4 @@
-gcc_ggplot
+qcc_ggplot
 ==========
 Rewrite of plot.qcc (from the qcc package) using ggplot and grid.
 
@@ -20,3 +20,5 @@ History
 v 1.0    2014-03-03 First release.
 
 v 1.0.1  2016-01-12 Update for ggplot2 v2.0 compatibility. May break on older versions of ggplot2
+
+v 1.0.2  2016-01-18 Bug fix: add in ability to specify x-axis labels (allowed in qcc; previously unsupported in qcc_ggplot)
