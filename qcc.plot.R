@@ -57,11 +57,11 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #' ADDED: Ability to disable plot main title with title = element_blank()
 
 plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE, 
-                       label.limits = c("LCL", "UCL", "CL"),
-                       title = NULL, xlab = NULL, ylab = NULL, ylim = NULL, axes.las = 0,
-                       digits =  getOption("digits"),
-                       restore.par = TRUE, font.size = 16, size = 4, cex,
-                       plot.new = TRUE, ...) 
+                     label.limits = c("LCL", "UCL", "CL"),
+                     title = NULL, xlab = NULL, ylab = NULL, ylim = NULL, axes.las = 0,
+                     digits =  getOption("digits"),
+                     restore.par = TRUE, font.size = 16, size = 4, cex,
+                     plot.new = TRUE, ...) 
 {
   object <- x  # Argh.  Really want to use 'object' anyway
   if ((missing(object)) | (!inherits(object, "qcc")))
@@ -152,7 +152,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     label.limits[1] <- as.character(signif(lcl[length(lcl)], digits = sig.figs))
     label.limits[2] <- signif(ucl[length(ucl)], digits = sig.figs)
   }
-
+  
   #' create a data frame for use by ggplot
   qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
   
@@ -177,12 +177,17 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' Adjust axis title orientation based on "las" value.
     #' TODO: Need to calculate appropriate angle.
   }
+  if(is.null(names(stats))) 
+    xlabs = as.character(indices) 
+  else 
+    xlabs = as.character(names(stats))
+  
   qc.gplot <- ggplot(data = qc.data, environment = environment(), 
                      aes(x = df.indices, y = df.statistics)) +
     theme(
       text = element_text(size = font.size), 
       plot.margin = unit(c(1,1,1,1), "mm")) +
-    scale_x_continuous(expand = c(0, 0.5), limits = xlim)
+    scale_x_continuous(expand = c(0, 0.5), limits = xlim, breaks = df.indices, labels = xlabs)
   ###
   ## Code works to here
   ###
