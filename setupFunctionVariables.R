@@ -33,24 +33,24 @@ detach(pistonrings)
 
 data(circuit)
 attach(circuit)
-qcc(x[trial], sizes=size[trial], type="c")
+qcc(circuit$x[trial], sizes=size[trial], type="c")
 # remove out-of-control points (see help(circuit) for the reasons)
 inc <- setdiff(which(trial), c(6,20))
-qcc(x[inc], sizes=size[inc], type="c", labels=inc)
-qcc(x[inc], sizes=size[inc], type="c", labels=inc, 
+qcc(circuit$x[inc], sizes=size[inc], type="c", labels=inc)
+qcc(circuit$x[inc], sizes=size[inc], type="c", labels=inc, 
     newdata=x[!trial], newsizes=size[!trial], newlabels=which(!trial))
-qcc(x[inc], sizes=size[inc], type="u", labels=inc, 
+qcc(circuit$x[inc], sizes=size[inc], type="u", labels=inc, 
     newdata=x[!trial], newsizes=size[!trial], newlabels=which(!trial))
 detach(circuit)
 
 data(pcmanufact)
 attach(pcmanufact)
-qcc(x, sizes=size, type="u")
+qcc(pcmanufact$x, sizes=size, type="u")
 detach(pcmanufact)
 
 data(dyedcloth)
 attach(dyedcloth)
-qcc(x, sizes=size, type="u")
+qcc(dyedcloth$x, sizes=size, type="u")
 # standardized control chart
 detach(dyedcloth)
 

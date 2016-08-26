@@ -40,6 +40,9 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #'      should be restored. Defaults to TRUE.
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
 #' @return A \code{grid} object containing the complete plot.
+#' TODO: FIX: " Error: `breaks` and `labels` must have the same length" when using newdata argument
+#' TODO: Add ability to control breaks on x-axis to avoid overlapping labels
+#'        Alt: come up with a pretty labeller that works.
 #' TODO: Add ability to control axis orientation, using axes.las.
 #' TODO: Work out a cleaner layout for the stats grid, especially one that maintains
 #'      spacing when resized to larger sizes (i.e. variable positioning of text).
@@ -178,7 +181,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' TODO: Need to calculate appropriate angle.
   }
   if(is.null(names(stats))) 
-    xlabs = as.character(indices) 
+    xlabs = as.character(qc.data$df.indices) # xlabs = as.character(indices) 
   else 
     xlabs = as.character(names(stats))
   
@@ -187,7 +190,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     theme(
       text = element_text(size = font.size), 
       plot.margin = unit(c(1,1,1,1), "mm")) +
-    scale_x_continuous(expand = c(0, 0.5), limits = xlim, breaks = df.indices, labels = xlabs)
+    scale_x_continuous(expand = c(0, 0.5), limits = xlim, breaks = qc.data$df.indices, labels = xlabs)
   ###
   ## Code works to here
   ###
@@ -225,7 +228,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     qc.gplot <- qc.gplot + geom_hline(yintercept = ucl, linetype = 2)
   } else {
     #' For variable limits, plot stepped lines for UCL and LCL
-    varlimits.df <- data.frame(x.l = qc.data$df.indices, yu.l = ucl[df.indices], yl.l = lcl[df.indices])
+    varlimits.df <- data.frame(x.l = qc.data$df.indices, yu.l = ucl[qc.data$df.indices], yl.l = lcl[qc.data$df.indices])
     qc.gplot <- qc.gplot + geom_step(data = varlimits.df, 
                                      aes(x = x.l, y = yl.l), 
                                      direction = "hv", linetype = 2)
