@@ -14,6 +14,8 @@ To Do
 --------
 * Add back in the ability to control axis text orientation, using <code>axes.las</code>.
 * Clean up the layout of the stats panel, especially when resizing to larger plot dimensions.
+* Fix bug when adding newdata.
+* Clean up x-axis tick labels to avoid overplotting.
 
 History
 --------
@@ -22,3 +24,5 @@ v 1.0    2014-03-03 First release.
 v 1.0.1  2016-01-12 Update for ggplot2 v2.0 compatibility. May break on older versions of ggplot2
 
 v 1.0.2  2016-01-18 Bug fix: add in ability to specify x-axis labels (allowed in qcc; previously unsupported in qcc_ggplot)
+
+v 1.0.3  2016-08-26 Backend cleanup. Assignment of df.indices in data frame was scoped incorrectly, 
