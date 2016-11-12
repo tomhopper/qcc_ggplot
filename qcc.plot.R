@@ -5,6 +5,19 @@ if(require(grid) == FALSE)     # Used to create plot title and statistics region
 if(require(gtable) == FALSE)   # Used to align annotations outside the plot region
   stop("Could not load library gtable. Please install gtable and then source() this file.")
 
+#' A waiver object. Copied from ggplot2 
+#'
+#' A waiver is a "flag" object, similar to \code{NULL}, that indicates the
+#' calling function should just use the default value.  It is used in certain
+#' functions to distinguish between displaying nothing (\code{NULL}) and
+#' displaying a default value calculated elsewhere (\code{waiver()})
+#'
+#' @export
+#' @keywords internal
+waiver <- function() structure(NULL, class = "waiver")
+
+is.waive <- function(x) inherits(x, "waiver")
+
 #' @title plot.qcc
 #' @author Scrucca, L. (qcc package)
 #' @author Hopper, T. J. (ggplot/grid rewrite of plot.qcc) \email{tomhopper@@gmail.com}
@@ -19,9 +32,9 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #'      printed on the graph.
 #' @param chart.all All boolean flag controlling whether all (old and new) 
 #'      statistics are plotted, or only one or the other
-#' @param label.limits A character vector with three elements containing the 
-#'      labels for the lower control limit line, the upper control limit line and 
-#'      the center line.
+#' @param label.limits A character vector with to elements containing the 
+#'      labels for the lower control limit line and the upper control limit line. The default
+#'      argument now uses \code{\link{waiver()}} from \link{ggplot2}.
 #' @param title A character string containing the desired plot title. If not 
 #'      supplied, a default will be created. If set to element_blank(), the title will
 #'      not be printed and the control chart will be expanded (i.e. the space normally allocated
@@ -39,8 +52,10 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #' @param restore.par A boolean indicating whether or not graphic parameters 
 #'      should be restored. Defaults to TRUE.
 #' @param font.size The desired font size in points (pts). Defaults to 12 pts.
+#' @param label.cl A character vector with one element containing the
+#'      label for the central limit line.
 #' @return A \code{grid} object containing the complete plot.
-#' TODO: FIX: " Error: `breaks` and `labels` must have the same length" when using newdata argument
+#' TODO: FIX: "Error: `breaks` and `labels` must have the same length" when using newdata argument
 #' TODO: Add ability to control breaks on x-axis to avoid overlapping labels
 #'        Alt: come up with a pretty labeller that works.
 #' TODO: Add ability to control axis orientation, using axes.las.
@@ -51,6 +66,8 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #' ADDED: Limit digits to getOption(), and try to estimate a smaller value from the data.
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
+#' FIXED: label.limits requires three arguments instead of two; make three optional
+#' FIXED: when label.limits supplied, text box reports LCL and UCL = labels; should should actual values, and labels only used on graph
 #' FIXED: CL, UCL, LCL labels grid panel is too narrow (showing 40 instead 
 #'  of 400 and 10 instead of 1030). Used \code{paste(..., collapse = '')}.
 #' FIXED: violating.runs only colors first point.
@@ -60,11 +77,12 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #' ADDED: Ability to disable plot main title with title = element_blank()
 
 plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE, 
-                     label.limits = c("LCL", "UCL", "CL"),
+                     label.limits = waiver(),
                      title = NULL, xlab = NULL, ylab = NULL, ylim = NULL, axes.las = 0,
                      digits =  getOption("digits"),
-                     restore.par = TRUE, font.size = 16, size = 4, cex,
-                     plot.new = TRUE, ...) 
+                     restore.par = TRUE, font.size = 12, size = 4, cex,
+                     plot.new = TRUE,
+                     label.cl = waiver(), ...) 
 {
   object <- x  # Argh.  Really want to use 'object' anyway
   if ((missing(object)) | (!inherits(object, "qcc")))
@@ -92,7 +110,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   if(chart.all) { 
     v.statistics <- c(stats, newstats)
     v.indices <- 1:length(v.statistics) 
-  }  else { 
+  } else { 
     if(is.null(newstats)) { 
       v.statistics <- stats
       v.indices <- 1:length(v.statistics) 
@@ -150,11 +168,29 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   #' If the default limit labels are used, create new labels using the last values
   #' for center, limits[1] and limits[2].
-  if(label.limits[1] == "LCL" && label.limits[2] == "UCL" && label.limits[3] == "CL") {
-    label.limits[3] <- as.character(signif(center[length(center)], digits = sig.figs))
-    label.limits[1] <- as.character(signif(lcl[length(lcl)], digits = sig.figs))
-    label.limits[2] <- signif(ucl[length(ucl)], digits = sig.figs)
+  #' Possibilities: label.limits is numeric; label.cl is default or text
+  #'                label.cl is numeric; label.limits is default or text
+  #' Desired result: label.limits is a character vector with 3 elements
+  if(is.waive(label.limits)) {
+    label.limits <- c(as.character(signif(lcl[length(lcl)], digits = sig.figs)),
+                      as.character(signif(ucl[length(ucl)], digits = sig.figs)))
+  } else{
+    if(is.numeric(label.limits)) {
+      label.limits.text <- as.character(c(NA, NA))
+      label.limits.text[1] <- as.character(signif(label.limits[1], digits = sig.figs))
+      label.limits.text[2] <- as.character(signif(label.limits[2], digits = sig.figs))
+      label.limits <- label.limits.text
+    }
   }
+  if(is.waive(label.cl)) {
+    label.cl <- as.character(signif(center[length(center)], digits = sig.figs))
+  } else {
+    if(is.numeric(label.cl)) {
+      label.cl <- as.character(signif(label.cl, digits = sig.figs))
+    }
+  }
+  
+  label.limits <- c(label.limits, label.cl)
   
   #' create a data frame for use by ggplot
   qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
@@ -180,10 +216,11 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' Adjust axis title orientation based on "las" value.
     #' TODO: Need to calculate appropriate angle.
   }
-  if(is.null(names(stats))) 
+  if(is.null(names(stats))) {
     xlabs = as.character(qc.data$df.indices) # xlabs = as.character(indices) 
-  else 
-    xlabs = as.character(names(stats))
+  } else { 
+    xlabs = c(as.character(names(stats)), as.character(names(newstats)))
+  }
   
   qc.gplot <- ggplot(data = qc.data, environment = environment(), 
                      aes(x = df.indices, y = df.statistics)) +
@@ -218,7 +255,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' otherwise, we need to plot a stepped center line
     print(center)
     qc.gplot <- qc.gplot + 
-      geom_step(aes(x = df.indices, y = c(center, center[length(center)])), direction="hv", )
+      geom_step(aes(x = df.indices, y = c(center, center[length(center)])), direction="hv")
   }
   
   #' Add control limit lines
@@ -456,7 +493,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
                 y = stats.y[2],
                 just = c("left"),
                 name = "centerlab")
-      grid.text(label.limits[3],
+      grid.text(as.character(signif(center[length(center)], digits = sig.figs)),
                 x = stats.x[2],
                 y = stats.y[2],
                 just = c("left"),
@@ -485,7 +522,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
                 y = stats.y[2],
                 just = c("left"),
                 name = "lcllabel")
-      grid.text(label.limits[1],
+      grid.text(as.character(signif(lcl[length(lcl)], digits = sig.figs)),
                 x = stats.x[4],
                 y = stats.y[2],
                 just = c("left"),
@@ -503,7 +540,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
                 y = stats.y[3],
                 just = c("left"),
                 name = "ucllabel")
-      grid.text(label.limits[2],
+      grid.text(as.character(signif(ucl[length(ucl)], digits = sig.figs)),
                 x = stats.x[4],
                 y = stats.y[3],
                 just = c("left"),

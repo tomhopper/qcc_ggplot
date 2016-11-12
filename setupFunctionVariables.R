@@ -4,7 +4,7 @@ library(qcc)
 my.xmr.raw <- c(5045,4350,4350,3975,4290,4430,4485,4285,3980,3925,3645,3760,3300,3685,3463,5200)
 my.xmr.new <- round(c(runif(5, 3500, 4000)))
 x <- qcc(my.xmr.raw, type = "xbar.one", title = "Individuals Chart\nfor Wheeler sample data")
-x <- qcc(my.xmr.raw, type = "xbar.one", newdata = my.xmr.new)
+x <- qcc(my.xmr.raw, type = "xbar.one", newdata = my.xmr.new, plot = TRUE)
 x <- qcc(matrix(cbind(my.xmr.raw[1:length(my.xmr.raw)-1], my.xmr.raw[2:length(my.xmr.raw)]), ncol = 2), type = "R", title = "Moving Range Chart\nfor Wheeler sample data")
 
 #' xbar-R
@@ -17,6 +17,11 @@ my.xbr.raw <- c(45,46,43,44,
 my.xbr.raw <- matrix(data=my.xbr.raw, ncol = 4, byrow = TRUE)
 x <- qcc(my.xbr.raw, type = "xbar")
 x <- qcc(my.xbr.raw, type = "R")
+x <- qcc(my.xbr.raw, type = "xbar", label.limits = c(100, 200))
+x <- qcc(my.xbr.raw, type = "xbar", label.limits = c("LCL", "UCL"))
+x <- qcc(my.xbr.raw, type = "xbar", label.limits = c("LCL", "UCL"), label.cl = "CL")
+x <- qcc(my.xbr.raw, type = "xbar", label.limits = c("LCL", "UCL"), label.cl = 500)
+x <- qcc(my.xbr.raw, type = "xbar", label.limits = c(100, 200), label.cl = 500)
 
 #' variable limits
 data(pistonrings)
@@ -33,24 +38,24 @@ detach(pistonrings)
 
 data(circuit)
 attach(circuit)
-qcc(circuit$x[trial], sizes=size[trial], type="c")
+qcc(circuit$x[trial], sizes=circuit$size[circuit$trial], type="c")
 # remove out-of-control points (see help(circuit) for the reasons)
-inc <- setdiff(which(trial), c(6,20))
-qcc(circuit$x[inc], sizes=size[inc], type="c", labels=inc)
-qcc(circuit$x[inc], sizes=size[inc], type="c", labels=inc, 
-    newdata=x[!trial], newsizes=size[!trial], newlabels=which(!trial))
+inc <- setdiff(which(circuit$trial), c(6,20))
+qcc(circuit$x[inc], sizes=circuit$size[inc], type="c", labels=inc)
+qcc(circuit$x[inc], sizes=circuit$size[inc], type="c", labels=inc, 
+    newdata=circuit$x[!trial], newsizes=circuit$size[!trial], newlabels=which(!trial))
 qcc(circuit$x[inc], sizes=size[inc], type="u", labels=inc, 
-    newdata=x[!trial], newsizes=size[!trial], newlabels=which(!trial))
+    newdata=circuit$x[!trial], newsizes=circuit$size[!trial], newlabels=which(!trial))
 detach(circuit)
 
 data(pcmanufact)
 attach(pcmanufact)
-qcc(pcmanufact$x, sizes=size, type="u")
+qcc(pcmanufact$x, sizes=pcmanufact$size, type="u")
 detach(pcmanufact)
 
 data(dyedcloth)
 attach(dyedcloth)
-qcc(dyedcloth$x, sizes=size, type="u")
+qcc(dyedcloth$x, sizes=dyedcloth$size, type="u")
 # standardized control chart
 detach(dyedcloth)
 
