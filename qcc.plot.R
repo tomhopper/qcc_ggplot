@@ -55,7 +55,6 @@ is.waive <- function(x) inherits(x, "waiver")
 #' @param label.cl A character vector with one element containing the
 #'      label for the central limit line.
 #' @return A \code{grid} object containing the complete plot.
-#' TODO: FIX: "Error: `breaks` and `labels` must have the same length" when using newdata argument
 #' TODO: Add ability to control breaks on x-axis to avoid overlapping labels
 #'        Alt: come up with a pretty labeller that works.
 #' TODO: Add ability to control axis orientation, using axes.las.
@@ -66,6 +65,7 @@ is.waive <- function(x) inherits(x, "waiver")
 #' ADDED: Limit digits to getOption(), and try to estimate a smaller value from the data.
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
+#' FIXED: "Error: `breaks` and `labels` must have the same length" when using newdata argument
 #' FIXED: label.limits requires three arguments instead of two; make three optional
 #' FIXED: when label.limits supplied, text box reports LCL and UCL = labels; should should actual values, and labels only used on graph
 #' FIXED: CL, UCL, LCL labels grid panel is too narrow (showing 40 instead 
@@ -227,11 +227,9 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     theme(
       text = element_text(size = font.size), 
       plot.margin = unit(c(1,1,1,1), "mm")) +
-    scale_x_continuous(expand = c(0, 0.5), limits = xlim, breaks = qc.data$df.indices, labels = xlabs)
-  ###
-  ## Code works to here
-  ###
-  #' Plot dots and connecting lines for the statistic variable
+    scale_x_continuous(expand = c(0, 0.5), limits = xlim) #, breaks = qc.data$df.indices, labels = xlabs
+
+    #' Plot dots and connecting lines for the statistic variable
   qc.gplot <- qc.gplot + 
     geom_line(colour = "grey40") + 
     geom_point(shape = 20, size = size) 
