@@ -15,6 +15,7 @@ To Do
 * Add back in the ability to control axis text orientation, using <code>axes.las</code>.
 * Clean up the layout of the stats panel, especially when resizing to larger plot dimensions.
 * Clean up x-axis tick labels to avoid overplotting.
+* Add back in the ability to plot user-defined x-axis tick labels, instead of the default index number.
 
 History
 --------
@@ -40,3 +41,7 @@ First release.
 * Fixed backwards compatibility problem with label.limits. Will now accept any text or numeric labels for UCL and LCL labels.
 * Added argument label.cl to allow manual setting of center line label
 * Fixed incorrect UCL, LCL and CL labels showing in plot info box when label.limits or label.cl was set; not correctly shows the actual calculated values.
+
+#### v 1.0.6 2017-12-28
+
+* Fixed problem with added labels causing an error in ggplot2 code.

@@ -14,15 +14,15 @@ if(require(gtable) == FALSE)   # Used to align annotations outside the plot regi
 #'
 #' @export
 #' @keywords internal
-waiver <- function() structure(NULL, class = "waiver")
+waiver <- function() structure(list(), class = "waiver")
 
 is.waive <- function(x) inherits(x, "waiver")
 
 #' @title plot.qcc
 #' @author Scrucca, L. (qcc package)
 #' @author Hopper, T. J. (ggplot/grid rewrite of plot.qcc) \email{tomhopper@@gmail.com}
-#' @copyright (C) 2014 Thomas J. Hopper The MIT License
-#' @description Implementation of plot.qcc using ggplot2 and grid
+#' @copyright (C) 2017 Thomas J. Hopper The MIT License
+#' @description Implementation of plot.qcc using ggplot2 and grid. Version 1.0.6
 #' @details 
 #' @import grid
 #' @import ggplot2
@@ -55,13 +55,16 @@ is.waive <- function(x) inherits(x, "waiver")
 #' @param label.cl A character vector with one element containing the
 #'      label for the central limit line.
 #' @return A \code{grid} object containing the complete plot.
-#' TODO: Add ability to control breaks on x-axis to avoid overlapping labels
+#' TODO: Add ability to use user-supplied x-axis tick labels. REQUIRES: control
+#'        of breaks on x-axis to avoid overlapping labels.
 #'        Alt: come up with a pretty labeller that works.
 #' TODO: Add ability to control axis orientation, using axes.las.
 #' TODO: Work out a cleaner layout for the stats grid, especially one that maintains
 #'      spacing when resized to larger sizes (i.e. variable positioning of text).
 #' TODO: Add some user control over the theme, e.g. by adding a parameter "theme" and
 #'      passing "theme_grey" or "theme_bw."
+#' TODO: Switch LCL, UCL, Center labels to engineering notation depending on number
+#'        of digits in characters vectors. IDEAL: add user-defined digits to display
 #' ADDED: Limit digits to getOption(), and try to estimate a smaller value from the data.
 #' ADDED: option to control point sizes. Use \code{cex} for backward compatibility
 #'      and \code{size} for ggplot2 compatibility.
@@ -85,6 +88,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
                      label.cl = waiver(), ...) 
 {
   object <- x  # Argh.  Really want to use 'object' anyway
+  
   if ((missing(object)) | (!inherits(object, "qcc")))
     stop("an object of class `qcc' is required")
   
@@ -127,10 +131,11 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' and re-use for other ggplot objects in a grid arrangement.
   xlim <- range(v.indices)
   
-  #' Set up labels
-  #' Set axis labels if not provided by the user
+  #' Set up axis titles
+  #' Set axis titles if not provided by the user
   if(is.null(ylab)) ylab <- c("Group summary statistics")
   if(is.null(xlab)) xlab <- c("Group")
+  
   
   #' Create a main graph title. If provided by the user, use that.
   if (!inherits(x=title, what="element_blank")){
@@ -192,8 +197,32 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   
   label.limits <- c(label.limits, label.cl)
   
+  #' Set up x-axis tick labels
+  # x_labels <-  if(is.null(names(statistics))) # statistics is now stats
+  #   as.character(indices) else names(statistics) # indices is now v.indices
+
+  if(is.null(names(stats))) {
+    x_labels = as.character(v.indices) # x_labels = as.character(indices) 
+  } else { 
+    x_labels = c(as.character(names(stats)), as.character(names(newstats)))
+  }
+  
+  ## PROBLEM: v.indices is numeric; x_labels is character.
+  ## TODO: trace calls to ggplot using x_labels, v.indices or df_indices to determine if
+  ##       this should always be numeric or always be character. Update qc.data accordingly
+  ## RESOLVED: df_indices needs to be numeric
+  ## TODO: replace with x_labels with an index
+  ## TODO: use x_labels for labels -> axis title; not axis label
   #' create a data frame for use by ggplot
-  qc.data <- data.frame(df.indices <- v.indices, df.statistics <- as.vector(v.statistics)) 
+  qc.data <- data.frame(df_indices = v.indices, 
+                        df_stats = as.vector(v.statistics),
+                        df_labs_x = x_labels)
+  
+  rm(v.indices, v.statistics, x_labels)
+  
+  # print(environment())
+  # print(nrow(qc.data))
+  # print(qc.data)
   
   # plot Shewhart chart
   
@@ -216,20 +245,15 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' Adjust axis title orientation based on "las" value.
     #' TODO: Need to calculate appropriate angle.
   }
-  if(is.null(names(stats))) {
-    xlabs = as.character(qc.data$df.indices) # xlabs = as.character(indices) 
-  } else { 
-    xlabs = c(as.character(names(stats)), as.character(names(newstats)))
-  }
   
   qc.gplot <- ggplot(data = qc.data, environment = environment(), 
-                     aes(x = df.indices, y = df.statistics)) +
+                     aes_string(x = "df_indices", y = "df_stats")) +
     theme(
       text = element_text(size = font.size), 
       plot.margin = unit(c(1,1,1,1), "mm")) +
-    scale_x_continuous(expand = c(0, 0.5), limits = xlim) #, breaks = qc.data$df.indices, labels = xlabs
-
-    #' Plot dots and connecting lines for the statistic variable
+    scale_x_continuous(expand = c(0, 0.5), limits = xlim) #, breaks = qc.data$df_indices, labels = qc.data$df_labs_x
+  
+  #' Plot dots and connecting lines for the statistic variable
   qc.gplot <- qc.gplot + 
     geom_line(colour = "grey40") + 
     geom_point(shape = 20, size = size) 
@@ -253,7 +277,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     #' otherwise, we need to plot a stepped center line
     print(center)
     qc.gplot <- qc.gplot + 
-      geom_step(aes(x = df.indices, y = c(center, center[length(center)])), direction="hv")
+      geom_step(aes(x = df_indices, y = c(center, center[length(center)])), direction="hv")
   }
   
   #' Add control limit lines
@@ -263,12 +287,12 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
     qc.gplot <- qc.gplot + geom_hline(yintercept = ucl, linetype = 2)
   } else {
     #' For variable limits, plot stepped lines for UCL and LCL
-    varlimits.df <- data.frame(x.l = qc.data$df.indices, yu.l = ucl[qc.data$df.indices], yl.l = lcl[qc.data$df.indices])
+    varlimits.df <- data.frame(x.l = qc.data$df_indices, yu.l = ucl[qc.data$df_indices], yl.l = lcl[qc.data$df_indices])
     qc.gplot <- qc.gplot + geom_step(data = varlimits.df, 
-                                     aes(x = x.l, y = yl.l), 
+                                     aes_string(x = "x.l", y = "yl.l"), 
                                      direction = "hv", linetype = 2)
     qc.gplot <- qc.gplot + geom_step(data = varlimits.df, 
-                                     aes(x = x.l, y = yu.l), 
+                                     aes_string(x = "x.l", y = "yu.l"), 
                                      direction = "hv", linetype = 2)
   }
   
@@ -284,11 +308,11 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.r <- index.r[index.r>0] 
     }
     #' Create a data frame to (over)plot violating run points.
-    df.runs <- data.frame(x.r = qc.data$df.indices[index.r], y.r = qc.data$df.statistics[index.r])
+    df.runs <- data.frame(x.r = qc.data$df_indices[index.r], y.r = qc.data$df_stats[index.r])
     #' Replot points in violating runs in the adjusted color.
     qc.gplot <- qc.gplot + 
       geom_point(data = df.runs, 
-                 aes(x = x.r, y = y.r), 
+                 aes_string(x = "x.r", y = "y.r"), 
                  colour = qcc.options("violating.runs")$col, 
                  shape = qcc.options("violating.runs")$pch,
                  size = size)
@@ -306,10 +330,10 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
       index.b <- index.b[index.b>0] 
     }
     #' Create a data frame to (over)plot beyond limit points.
-    df.beyond <- data.frame(x.b = qc.data$df.indices[index.b], y.b = df.statistics[index.b])
+    df.beyond <- data.frame(x.b = qc.data$df_indices[index.b], y.b = qc.data$df_stats[index.b])
     #' Replot points that are beyond limits.
     qc.gplot <- qc.gplot + 
-      geom_point(data = df.beyond, aes(x = x.b, y = y.b), 
+      geom_point(data = df.beyond, aes_string(x = "x.b", y = "y.b"), 
                  colour = qcc.options("beyond.limits")$col,
                  shape = qcc.options("beyond.limits")$pch,
                  size = size)
@@ -320,7 +344,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' added points.
   if(chart.all & (!is.null(newstats))) { 
     len.obj.stats <- length(object$statistics)
-    len.new.stats <- length(v.statistics) - len.obj.stats
+    len.new.stats <- nrow(qc.data) - len.obj.stats
     qc.gplot <- qc.gplot + geom_vline(xintercept = len.obj.stats + 0.5, linetype = "dotted")
     
   }
@@ -335,7 +359,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' First, set up a data frame for plotting.
   qc.df.limitslab <- data.frame(x.ll = c(0,0,0), y.ll = c(limits[length(limits[,1]),1], limits[length(limits[,2]),2], center[length(center)]))
   #' Create a new ggplot object for the labels plot.
-  qc.p3 <- ggplot(qc.data, aes_string(x = df.indices, y = df.statistics), environment = environment()) +
+  qc.p3 <- ggplot(qc.data, aes_string(x = "df_indices", y = "df_stats"), environment = environment()) +
     geom_blank() +
     theme_minimal() +
     theme(line = element_blank(),
@@ -382,13 +406,13 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
   #' plot for the "calibration data..." and "new data in..." labels.
   if(chart.all & (!is.null(newstats))) { 
     #' Set up a data frame for plotting
-    qc.df.nslabel <- data.frame(index = v.indices[length(v.indices)], y = 0)
+    qc.df.nslabel <- data.frame(index = qc.data$df_indices[nrow(qc.data)], y = 0)
     #' Create the newdata label
     qc.p2.label2 <- paste("New data in", object$newdata.name)
     #' Calculate the position of the newdata label
     qc.p2.label2.x <- len.obj.stats + len.new.stats/2
     #' Create the ggplot object
-    qc.p2 <- ggplot(qc.data, aes(x = df.indices, y = df.statistics), environment = environment()) +
+    qc.p2 <- ggplot(qc.data, aes_string(x = "df_indices", y = "df_stats"), environment = environment()) +
       geom_blank() +
       theme_minimal() +
       theme(line = element_blank(),                   # Prevent display axis lines, etc.
@@ -479,7 +503,7 @@ plot.qcc <- function(x, add.stats = TRUE, chart.all = TRUE,
               y = stats.y[1],
               just = c("left"),
               name = "numgroupslab")
-    grid.text(as.character(length(v.statistics)),
+    grid.text(as.character(nrow(qc.data)),
               x = stats.x[3],
               y = stats.y[1],
               just = c("left"),
