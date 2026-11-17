@@ -32,7 +32,7 @@ is.waive <- function(x) inherits(x, "waiver")
 #'      printed on the graph.
 #' @param chart.all All boolean flag controlling whether all (old and new) 
 #'      statistics are plotted, or only one or the other
-#' @param label.limits A character vector with to elements containing the 
+#' @param label.limits A character vector with two elements containing the 
 #'      labels for the lower control limit line and the upper control limit line. The default
 #'      argument now uses \code{\link{waiver()}} from \link{ggplot2}.
 #' @param title A character string containing the desired plot title. If not 
